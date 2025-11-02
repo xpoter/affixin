@@ -72,10 +72,33 @@ class Ads extends Model
 
     protected function scopeForUser($query)
     {
-        $activePlanCount = PlanHistory::where('user_id', auth()->id())->where('status', PlanHistoryStatus::ACTIVE)->count();
-        $for = $activePlanCount > 0 ? AdsFor::SubscribedUsers : AdsFor::FreeUsers;
+        // Get all active plans for the user
+        $activePlans = PlanHistory::where('user_id', auth()->id())
+            ->where('status', PlanHistoryStatus::ACTIVE)
+            ->pluck('plan_id')
+            ->toArray();
 
-        return $query->whereIn('for', [AdsFor::BothUsers, $for]);
+        if (empty($activePlans)) {
+            // User is a free user - show only free user ads
+            return $query->where(function ($q) {
+                $q->where('for', AdsFor::FreeUsers)
+                  ->orWhere('for', AdsFor::BothUsers);
+            })->whereNull('plan_id');
+        }
+
+        // User has active subscription(s) - show ads for their plans
+        return $query->where(function ($q) use ($activePlans) {
+            // Show ads specifically for their subscribed plans
+            $q->where(function ($subQ) use ($activePlans) {
+                $subQ->where('for', AdsFor::SubscribedUsers)
+                     ->whereIn('plan_id', $activePlans);
+            })
+            // Or show ads for both users (no specific plan required)
+            ->orWhere(function ($subQ) {
+                $subQ->where('for', AdsFor::BothUsers)
+                     ->whereNull('plan_id');
+            });
+        });
     }
 
     public function getLastViewedAtAttribute()
@@ -107,6 +130,44 @@ class Ads extends Model
     public function user()
     {
         return $this->hasOne(User::class, 'id', 'user_id');
+    }
+
+    public function plan()
+    {
+        return $this->belongsTo(SubscriptionPlan::class, 'plan_id');
+    }
+
+    // Check if user can view this ad based on their plan
+    public function canBeViewedBy($userId)
+    {
+        $user = User::find($userId);
+        
+        if (!$user) {
+            return false;
+        }
+
+        // Get user's active plans
+        $activePlans = PlanHistory::where('user_id', $userId)
+            ->where('status', PlanHistoryStatus::ACTIVE)
+            ->pluck('plan_id')
+            ->toArray();
+
+        // If ad is for both users and has no specific plan requirement
+        if ($this->for === AdsFor::BothUsers && $this->plan_id === null) {
+            return true;
+        }
+
+        // If ad is for free users
+        if ($this->for === AdsFor::FreeUsers && empty($activePlans)) {
+            return true;
+        }
+
+        // If ad is for subscribed users with specific plan
+        if ($this->for === AdsFor::SubscribedUsers && $this->plan_id && in_array($this->plan_id, $activePlans)) {
+            return true;
+        }
+
+        return false;
     }
 
     protected $casts = [

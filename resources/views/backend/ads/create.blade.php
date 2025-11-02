@@ -34,11 +34,24 @@
                                 <div class="col-xxl-4">
                                     <div class="site-input-groups">
                                         <label class="box-input-label" for="">{{ __('For') }}</label>
-                                        <select name="for" class="form-select">
-                                            <option value="free_users">{{ __('Free Users') }}</option>
-                                            <option value="subscribed_users">{{ __('Subscribed Users') }}</option>
-                                            <option value="both_users">{{ __('Both Users') }}</option>
+                                        <select name="for" id="adsFor" class="form-select" required>
+                                            <option value="">{{ __('Select User Type') }}</option>
+                                            <option value="free_users" @selected(old('for') == 'free_users')>{{ __('Free Users') }}</option>
+                                            <option value="subscribed_users" @selected(old('for') == 'subscribed_users')>{{ __('Subscribed Users') }}</option>
+                                            <option value="both_users" @selected(old('for') == 'both_users')>{{ __('Both Users') }}</option>
                                         </select>
+                                    </div>
+                                </div>
+                                <div class="col-xxl-4" id="planField" style="display: none;">
+                                    <div class="site-input-groups">
+                                        <label class="box-input-label" for="">{{ __('Plan') }} <span class="text-danger">*</span></label>
+                                        <select name="plan_id" id="planSelect" class="form-select">
+                                            <option value="">{{ __('Select Plan') }}</option>
+                                            @foreach ($plans as $plan)
+                                            <option value="{{ $plan->id }}" @selected(old('plan_id') == $plan->id)>{{ $plan->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <small class="text-muted">{{ __('Required for Subscribed Users ads') }}</small>
                                     </div>
                                 </div>
                                 <div class="col-xxl-4">
@@ -47,7 +60,7 @@
                                             <i data-lucide="info" data-bs-toggle="tooltip" data-bs-original-title="User will showing ads then get this amount"></i>
                                         </label>
                                         <div class="input-group joint-input">
-                                            <input type="number" name="amount" class="form-control" value="{{ old('amount') }}" min="0.0001" max="100" step="0.0001"/>
+                                            <input type="number" name="amount" class="form-control" value="{{ old('amount') }}" min="0.0001" max="100" step="0.0001" required/>
                                             <span class="input-group-text">{{ $currency }}</span>
                                         </div>
                                     </div>
@@ -56,7 +69,7 @@
                                     <div class="site-input-groups">
                                         <label class="box-input-label" for="">{{ __('Duration') }}</label>
                                         <div class="input-group joint-input">
-                                            <input type="number" name="duration" class="form-control" value="{{ old('duration') }}"/>
+                                            <input type="number" name="duration" class="form-control" value="{{ old('duration') }}" required/>
                                             <span class="input-group-text">{{ __('Seconds') }}</span>
                                         </div>
                                     </div>
@@ -65,34 +78,21 @@
                                     <div class="site-input-groups">
                                         <label class="box-input-label" for="">{{ __('Max Show Limit') }} <i data-lucide="info" data-bs-toggle="tooltip" data-bs-original-title="User can't showing ads after reached the limit"></i></label>
                                         <div class="input-group joint-input">
-                                            <input type="number" name="max_views" class="form-control" value="{{ old('max_views') }}"/>
+                                            <input type="number" name="max_views" class="form-control" value="{{ old('max_views') }}" required/>
                                             <span class="input-group-text">{{ __('Times') }}</span>
                                         </div>
                                     </div>
                                 </div>
-                                {{-- @if(setting('ads_system','permission'))
-                                <div class="col-xxl-4">
-                                    <div class="site-input-groups">
-                                        <label class="box-input-label" for="">{{ __('Plan') }}</label>
-                                        <select name="plan_id" class="form-select">
-                                            <option selected disabled>{{ __('Select Plan') }}</option>
-                                            @foreach ($plans as $plan)
-                                            <option value="{{ $plan->id }}">{{ $plan->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-                                @endif --}}
                                 <div class="row">
                                     <div class="col-xxl-4">
                                         <div class="site-input-groups">
                                             <label class="box-input-label" for="">{{ __('Ads Type') }}</label>
-                                            <select name="type" class="form-select" id="adsType">
-                                                <option selected disabled>{{ __('Select Type') }}</option>
-                                                <option value="link">{{ __('Link/URL') }}</option>
-                                                <option value="image">{{ __('Banner/Image') }}</option>
-                                                <option value="script">{{ __('Script/Code') }}</option>
-                                                <option value="youtube">{{ __('Youtube Embed Link') }}</option>
+                                            <select name="type" class="form-select" id="adsType" required>
+                                                <option value="">{{ __('Select Type') }}</option>
+                                                <option value="link" @selected(old('type') == 'link')>{{ __('Link/URL') }}</option>
+                                                <option value="image" @selected(old('type') == 'image')>{{ __('Banner/Image') }}</option>
+                                                <option value="script" @selected(old('type') == 'script')>{{ __('Script/Code') }}</option>
+                                                <option value="youtube" @selected(old('type') == 'youtube')>{{ __('Youtube Embed Link') }}</option>
                                             </select>
                                         </div>
                                     </div>
@@ -108,7 +108,7 @@
                                             </div>
                                             <div id="script" class="d-none">
                                                 <label class="box-input-label" for="">{{ __('Script') }}</label>
-                                                <textarea name="script" class="form-textarea" cols="30" rows="4"></textarea>
+                                                <textarea name="script" class="form-textarea" cols="30" rows="4">{{ old('script') }}</textarea>
                                             </div>
                                             <div id="image" class="d-none">
                                                 <label class="box-input-label" for="">{{ __('Image') }}</label>
@@ -165,10 +165,34 @@
         (function ($) {
             "use strict";
 
+            // Handle Ads Type change
             $('#adsType').change(function() {
                 var selectedType = $(this).val();
                 visibilityField(selectedType);
             });
+
+            // Handle 'For' field change to show/hide plan field
+            $('#adsFor').change(function() {
+                var selectedFor = $(this).val();
+                if (selectedFor === 'subscribed_users') {
+                    $('#planField').show();
+                    $('#planSelect').prop('required', true);
+                } else {
+                    $('#planField').hide();
+                    $('#planSelect').prop('required', false);
+                    $('#planSelect').val('');
+                }
+            });
+
+            // Trigger on page load if old value exists
+            @if(old('for') == 'subscribed_users')
+                $('#planField').show();
+                $('#planSelect').prop('required', true);
+            @endif
+
+            @if(old('type'))
+                visibilityField('{{ old('type') }}');
+            @endif
 
             function visibilityField(selectedType)
             {

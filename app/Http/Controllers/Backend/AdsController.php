@@ -6,6 +6,7 @@ use App\Enums\AdsStatus;
 use App\Enums\AdsType;
 use App\Enums\TxnStatus;
 use App\Enums\TxnType;
+use App\Enums\AdsFor;
 use App\Facades\Txn\Txn;
 use App\Http\Controllers\Controller;
 use App\Models\Ads;
@@ -36,7 +37,7 @@ class AdsController extends Controller
 
     public function index()
     {
-        $ads = Ads::when(filled(request('sort_field')), function ($query) {
+        $ads = Ads::with('plan')->when(filled(request('sort_field')), function ($query) {
             $query->orderBy(request('sort_field'), request('sort_dir'));
         })
             ->search(request('query'))
@@ -53,7 +54,7 @@ class AdsController extends Controller
 
     public function pending()
     {
-        $ads = Ads::when(filled(request('sort_field')), function ($query) {
+        $ads = Ads::with('plan')->when(filled(request('sort_field')), function ($query) {
             $query->orderBy(request('sort_field'), request('sort_dir'));
         })
             ->search(request('query'))
@@ -69,7 +70,7 @@ class AdsController extends Controller
 
     public function inactive()
     {
-        $ads = Ads::when(filled(request('sort_field')), function ($query) {
+        $ads = Ads::with('plan')->when(filled(request('sort_field')), function ($query) {
             $query->orderBy(request('sort_field'), request('sort_dir'));
         })
             ->search(request('query'))
@@ -85,7 +86,7 @@ class AdsController extends Controller
 
     public function active()
     {
-        $ads = Ads::when(filled(request('sort_field')), function ($query) {
+        $ads = Ads::with('plan')->when(filled(request('sort_field')), function ($query) {
             $query->orderBy(request('sort_field'), request('sort_dir'));
         })
             ->search(request('query'))
@@ -101,7 +102,7 @@ class AdsController extends Controller
 
     public function rejected()
     {
-        $ads = Ads::when(filled(request('sort_field')), function ($query) {
+        $ads = Ads::with('plan')->when(filled(request('sort_field')), function ($query) {
             $query->orderBy(request('sort_field'), request('sort_dir'));
         })
             ->search(request('query'))
@@ -124,8 +125,6 @@ class AdsController extends Controller
 
     public function store(Request $request)
     {
-        $planWise = setting('ads_system', 'permission') == 1 ? true : false;
-
         $validator = Validator::make($request->all(), [
             'title' => 'required',
             'amount' => 'required|numeric',
@@ -133,7 +132,14 @@ class AdsController extends Controller
             'max_views' => 'required|numeric',
             'type' => 'required|in:link,image,script,youtube',
             'status' => 'required',
-            'plan_id' => [Rule::requiredIf($planWise), 'exists:subscription_plans,id'],
+            'for' => 'required|in:free_users,subscribed_users,both_users',
+            'plan_id' => [
+                Rule::requiredIf(function () use ($request) {
+                    return $request->for === 'subscribed_users';
+                }),
+                'nullable',
+                'exists:subscription_plans,id'
+            ],
             'schedules' => 'nullable|array',
         ]);
 
@@ -143,6 +149,15 @@ class AdsController extends Controller
             return redirect()->back()->withInput();
         }
 
+        // Validate plan_id based on 'for' field
+        if ($request->get('for') === 'subscribed_users' && !$request->get('plan_id')) {
+            notify()->error(__('Plan is required for subscribed users ads'), 'Error');
+            return redirect()->back()->withInput();
+        }
+
+        // If 'for' is free_users or both_users, set plan_id to null
+        $planId = $request->get('for') === 'subscribed_users' ? $request->get('plan_id') : null;
+
         $bannerPath = null;
         if ($request->get('type') == 'image' && $request->hasFile('image')) {
             $bannerPath = self::imageUploadTrait($request->file('image'));
@@ -151,7 +166,7 @@ class AdsController extends Controller
         Ads::create([
             'title' => $request->get('title'),
             'user_id' => 0,
-            'plan_id' => $planWise ? $request->get('plan_id') : null,
+            'plan_id' => $planId,
             'amount' => $request->get('amount'),
             'for' => $request->get('for'),
             'duration' => $request->get('duration'),
@@ -178,7 +193,6 @@ class AdsController extends Controller
 
     public function update(Request $request, $id)
     {
-        $planWise = setting('ads_system', 'permission') == 1 ? true : false;
         $validator = Validator::make($request->all(), [
             'title' => 'required',
             'amount' => 'required|numeric',
@@ -186,7 +200,14 @@ class AdsController extends Controller
             'max_views' => 'required|numeric',
             'type' => 'required|in:link,image,script,youtube',
             'status' => 'required',
-            'plan_id' => [Rule::requiredIf($planWise), 'exists:subscription_plans,id'],
+            'for' => 'required|in:free_users,subscribed_users,both_users',
+            'plan_id' => [
+                Rule::requiredIf(function () use ($request) {
+                    return $request->for === 'subscribed_users';
+                }),
+                'nullable',
+                'exists:subscription_plans,id'
+            ],
             'schedules' => 'nullable|array',
         ]);
 
@@ -195,6 +216,15 @@ class AdsController extends Controller
 
             return redirect()->back()->withInput();
         }
+
+        // Validate plan_id based on 'for' field
+        if ($request->get('for') === 'subscribed_users' && !$request->get('plan_id')) {
+            notify()->error(__('Plan is required for subscribed users ads'), 'Error');
+            return redirect()->back()->withInput();
+        }
+
+        // If 'for' is free_users or both_users, set plan_id to null
+        $planId = $request->get('for') === 'subscribed_users' ? $request->get('plan_id') : null;
 
         $ads = Ads::findOrFail($id);
 
@@ -205,7 +235,7 @@ class AdsController extends Controller
 
         $ads->update([
             'title' => $request->get('title'),
-            'plan_id' => $planWise ? $request->get('plan_id') : null,
+            'plan_id' => $planId,
             'for' => $request->get('for'),
             'amount' => $request->get('amount'),
             'duration' => $request->get('duration'),

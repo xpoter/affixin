@@ -37,16 +37,31 @@ class AdsController extends Controller
 
     public function adsView($id)
     {
-        // Check daily ads limit
-        $plan_id = $this->checkDailyAdsLimit();
-
+        // Decrypt ads ID
+        $adsId = decrypt($id);
+        
         // Get ads
-        $ads = Ads::findOrFail(decrypt($id));
+        $ads = Ads::findOrFail($adsId);
+        
+        // Check if user can view this ad based on their plan
+        if (!$ads->canBeViewedBy(auth()->id())) {
+            notify()->error(__('You do not have access to view this ad. Please subscribe to the required plan.'));
+            return to_route('user.ads.index');
+        }
+
+        // Check daily ads limit and get plan_id
+        $plan_id = $this->checkDailyAdsLimit($ads->plan_id);
+        
+        if ($plan_id === null) {
+            return to_route('user.ads.index');
+        }
+
         $firstInt = rand(1, 20);
         $secondInt = rand(1, 20);
 
         // Get categories
         $categories = AdsReportCategory::where('status', 1)->get();
+        
         // Check if the user has viewed the ads in the last 24 hours
         $recentlyViewed = AdsHistory::user()->where('ads_id', $ads->id)->where('created_at', '>=', now()->subHours(24))->exists();
 
@@ -65,9 +80,22 @@ class AdsController extends Controller
     {
         // Decrypt the ads ID
         $adsId = decrypt($id);
+        
+        // Get the ads
+        $ads = Ads::where('status', AdsStatus::Active)->findOrFail($adsId);
+        
+        // Check if user can view this ad based on their plan
+        if (!$ads->canBeViewedBy(auth()->id())) {
+            notify()->error(__('You do not have access to view this ad. Please subscribe to the required plan.'));
+            return to_route('user.ads.index');
+        }
 
-        // Check daily ads limit
-        $plan_id = $this->checkDailyAdsLimit();
+        // Check daily ads limit and get plan_id
+        $plan_id = $this->checkDailyAdsLimit($ads->plan_id);
+        
+        if ($plan_id === null) {
+            return to_route('user.ads.index');
+        }
 
         // Check if the user has viewed the ads in the last 24 hours
         $recentlyViewed = AdsHistory::user()->where('ads_id', $adsId)->where('created_at', '>=', now()->subHours(24))->exists();
@@ -92,11 +120,7 @@ class AdsController extends Controller
             return redirect()->back();
         }
 
-        // Get the ads
-        $ads = Ads::where('status', AdsStatus::Active)->findOrFail($adsId);
         // Get the ads bonus type and delay hours
-        $adsBonusType = setting('ads_bonus_system', 'ads');
-        $delayHours = setting('ads_bonus_delay_hours', 'ads');
         $adsBonusType = setting('ads_bonus_system', 'ads');
         $delayHours = setting('ads_bonus_delay_hours', 'ads');
 
@@ -105,9 +129,6 @@ class AdsController extends Controller
             'user_id' => auth()->id(),
             'plan_id' => $plan_id,
             'ads_id' => $adsId,
-            'amount' => $ads->amount,
-            'claimable_at' => $adsBonusType ? null : Carbon::now()->addHours($delayHours),
-            'is_claimed' => $adsBonusType ? true : false,
             'amount' => $ads->amount,
             'claimable_at' => $adsBonusType ? null : Carbon::now()->addHours($delayHours),
             'is_claimed' => $adsBonusType ? true : false,
@@ -150,7 +171,7 @@ class AdsController extends Controller
         return to_route('user.ads.index');
     }
 
-    protected function checkDailyAdsLimit()
+    protected function checkDailyAdsLimit($adsPlanId = null)
     {
         // Get the user ID
         $userId = auth()->id();
@@ -163,37 +184,64 @@ class AdsController extends Controller
             ->where('status', PlanHistoryStatus::ACTIVE)
             ->get();
 
+        // If ad has no specific plan (free or both users ads)
+        if ($adsPlanId === null) {
+            if ($activePlans->isEmpty()) {
+                // Free user viewing free/both ads
+                $freeUserAdViewCount = AdsHistory::where('user_id', $userId)
+                    ->where('plan_id', 0)
+                    ->whereDate('created_at', now())
+                    ->count();
+
+                if ($freeUserAdViewCount >= $freeUserDailyLimit) {
+                    notify()->error(__('Daily ads limit exceeded'));
+                    return null;
+                }
+
+                return 0;
+            }
+
+            // Subscribed user viewing free/both ads - use any active plan
+            foreach ($activePlans as $plan) {
+                $adViewCount = AdsHistory::where('user_id', $userId)
+                    ->where('plan_id', $plan->id)
+                    ->whereDate('created_at', now()->toDateString())
+                    ->count();
+
+                if ($adViewCount < $plan->daily_ads_limit) {
+                    return $plan->id;
+                }
+            }
+
+            notify()->error(__('Daily ads limit exceeded'));
+            return null;
+        }
+
+        // Ad requires specific plan
         if ($activePlans->isEmpty()) {
-            // Handle free user limits if no active paid plan is found
-            $freeUserAdViewCount = AdsHistory::where('user_id', $userId)
-                ->where('plan_id', 0)
-                ->whereDate('created_at', now())
-                ->count();
-
-            // Check if the user has exceeded the daily limit
-            if ($freeUserAdViewCount >= $freeUserDailyLimit) {
-                notify()->error(__('Daily ads limit exceeded'));
-
-                return null;
-            }
-
-            return 0;
+            notify()->error(__('You need an active subscription to view this ad'));
+            return null;
         }
 
-        // Check if the user has exceeded the daily limit for any of the active plans
-        foreach ($activePlans as $plan) {
-            $adViewCount = AdsHistory::where('user_id', $userId)
-                ->where('plan_id', $plan->id)
-                ->whereDate('created_at', now()->toDateString())
-                ->count();
+        // Check if user has the required plan
+        $requiredPlan = $activePlans->where('plan_id', $adsPlanId)->first();
 
-            if ($adViewCount < $plan->daily_ads_limit) {
-                return $plan->id;
-            }
+        if (!$requiredPlan) {
+            notify()->error(__('You need to subscribe to the required plan to view this ad'));
+            return null;
         }
 
-        notify()->error(__('Daily ads limit exceeded'));
+        // Check daily limit for the specific plan
+        $adViewCount = AdsHistory::where('user_id', $userId)
+            ->where('plan_id', $requiredPlan->id)
+            ->whereDate('created_at', now()->toDateString())
+            ->count();
 
-        return null;
+        if ($adViewCount >= $requiredPlan->daily_ads_limit) {
+            notify()->error(__('Daily ads limit exceeded for this plan'));
+            return null;
+        }
+
+        return $requiredPlan->id;
     }
 }
