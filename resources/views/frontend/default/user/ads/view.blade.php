@@ -199,27 +199,49 @@
                             <!-- SHARE SECTION - Shows after 100% progress -->
                             <div class="share-section d-none" id="shareSection">
                                 <div class="share-header">
-                                    <h4>📱 {{ __('Share on WhatsApp to Continue') }}</h4>
-                                    <p>{{ __('Share this ad content to unlock the captcha') }}</p>
+                                    <h4>📱 {{ __('Share This Ad to Continue') }}</h4>
+                                    <p>{{ __('Share on any platform to unlock the captcha') }}</p>
                                 </div>
 
-                                <div class="share-link-box">
-                                    <p class="share-link-text" id="adContentToShare">
-                                        @if($ads->type == App\Enums\AdsType::Link)
-                                            {{ $ads->value }}
-                                        @elseif($ads->type == App\Enums\AdsType::Youtube)
-                                            {{ strip_tags($ads->value) }}
-                                        @elseif($ads->type == App\Enums\AdsType::Image)
-                                            {{ asset($ads->value) }}
-                                        @elseif($ads->type == App\Enums\AdsType::Script)
-                                            {{ $ads->title ?? 'Check out this ad!' }}
-                                        @endif
+                                @if($ads->type == App\Enums\AdsType::Image)
+                                    <!-- Image Preview for Image Ads -->
+                                    <div class="share-image-preview" style="text-align: center; margin-bottom: 20px;">
+                                        <img src="{{ asset($ads->value) }}" alt="Ad Image" style="max-width: 100%; max-height: 300px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                        <input type="hidden" id="adImageUrl" value="{{ asset($ads->value) }}">
+                                    </div>
+                                    <p style="text-align: center; color: #666; font-size: 13px; margin-bottom: 15px;">
+                                        {{ __('Click a button below to download and share this image') }}
                                     </p>
-                                </div>
+                                @else
+                                    <!-- Text/Link Content for Other Ad Types -->
+                                    <div class="share-link-box">
+                                        <p class="share-link-text" id="adContentToShare">
+                                            @if($ads->type == App\Enums\AdsType::Link)
+                                                {{ $ads->value }}
+                                            @elseif($ads->type == App\Enums\AdsType::Youtube)
+                                                {{ strip_tags($ads->value) }}
+                                            @elseif($ads->type == App\Enums\AdsType::Script)
+                                                {{ $ads->title ?? $ads->value ?? 'Check out this ad!' }}
+                                            @endif
+                                        </p>
+                                    </div>
+                                @endif
 
-                                <div class="text-center">
-                                    <button type="button" class="share-btn whatsapp" onclick="shareOnWhatsApp()" style="display: inline-flex; min-width: 200px;">
-                                        📱 {{ __('Share on WhatsApp') }}
+                                <div class="share-buttons-grid">
+                                    <button type="button" class="share-btn whatsapp" onclick="shareOnPlatform('whatsapp')">
+                                        📱 WhatsApp
+                                    </button>
+                                    <button type="button" class="share-btn facebook" onclick="shareOnPlatform('facebook')">
+                                        👥 Facebook
+                                    </button>
+                                    <button type="button" class="share-btn twitter" onclick="shareOnPlatform('twitter')">
+                                        <svg style="width: 14px; height: 14px; display: inline;" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                                        </svg>
+                                        X (Twitter)
+                                    </button>
+                                    <button type="button" class="share-btn instagram" onclick="shareOnPlatform('instagram')">
+                                        📷 Instagram
                                     </button>
                                 </div>
 
