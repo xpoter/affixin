@@ -48,16 +48,6 @@
                                             'site-btn',
                                             'disabled' => $ad->last_viewed_at !== null
                                         ]) target="_blank" href="{{ route('user.ads.view',encrypt($ad->id)) }}"><i class="icon-eye"></i> {{ __('View Ads') }}</a>
-                                        
-                                        {{-- Preview Button (Only for Image Ads) --}}
-                                        @if($ad->type->value === 'image')
-                                        <a class="site-btn site-btn-secondary" 
-                                           target="_blank" 
-                                           href="{{ route('ad.preview', encrypt($ad->id)) }}"
-                                           style="margin-top: 10px;">
-                                            <i class="icon-share"></i> {{ __('Preview & Share') }}
-                                        </a>
-                                        @endif
                                     </div>
                                 </div>
                                 <div class="bg-pattern">
