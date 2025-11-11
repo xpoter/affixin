@@ -31,6 +31,19 @@
                                         <input type="text" name="title" class="box-input mb-0" value="{{ old('title') }}" required/>
                                     </div>
                                 </div>
+                                
+                                <!-- NEW: Description Field -->
+                                <div class="col-xxl-12">
+                                    <div class="site-input-groups">
+                                        <label for="" class="box-input-label">
+                                            {{ __('Description') }} 
+                                            <span class="text-muted">({{ __('Optional - shown on ad preview page') }})</span>
+                                        </label>
+                                        <textarea name="description" class="form-textarea" rows="2" maxlength="500" placeholder="{{ __('Describe your ad...') }}">{{ old('description') }}</textarea>
+                                        <small class="text-muted">{{ __('Max 500 characters') }}</small>
+                                    </div>
+                                </div>
+                                
                                 <div class="col-xxl-4">
                                     <div class="site-input-groups">
                                         <label class="box-input-label" for="">{{ __('For') }}</label>
@@ -125,6 +138,92 @@
                                         </div>
                                     </div>
                                 </div>
+                                
+                                <!-- NEW: CTA Section (only for Image ads) -->
+                                <div class="col-xxl-12" id="ctaSection" style="display: none;">
+                                    <div class="site-card" style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); border: 2px solid #667eea; margin-top: 20px;">
+                                        <div class="site-card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                            <h5 class="mb-0 text-white">
+                                                <i data-lucide="mouse-pointer-click"></i>
+                                                {{ __('Call-to-Action Settings') }}
+                                            </h5>
+                                            <small class="text-white-50">{{ __('Customize the button on your ad preview page') }}</small>
+                                        </div>
+                                        <div class="site-card-body">
+                                            <div class="row">
+                                                <div class="col-xxl-6">
+                                                    <div class="site-input-groups">
+                                                        <label class="box-input-label" for="">
+                                                            {{ __('Button Text') }}
+                                                            <i data-lucide="info" data-bs-toggle="tooltip" title="{{ __('Text shown on the CTA button') }}"></i>
+                                                        </label>
+                                                        <input type="text" name="cta_button_text" id="cta_button_text" class="box-input mb-0" 
+                                                               value="{{ old('cta_button_text', 'Learn More') }}" 
+                                                               placeholder="{{ __('e.g., Shop Now, Get Started, Learn More') }}" 
+                                                               maxlength="50"/>
+                                                        <small class="text-muted">{{ __('Max 50 characters') }}</small>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="col-xxl-6">
+                                                    <div class="site-input-groups">
+                                                        <label class="box-input-label" for="">
+                                                            {{ __('Button URL') }}
+                                                            <i data-lucide="info" data-bs-toggle="tooltip" title="{{ __('Where the button links to') }}"></i>
+                                                        </label>
+                                                        <input type="url" name="cta_button_url" id="cta_button_url" class="box-input mb-0" 
+                                                               value="{{ old('cta_button_url') }}" 
+                                                               placeholder="{{ __('https://example.com/your-page') }}"/>
+                                                        <small class="text-muted">{{ __('Leave empty to link to homepage') }}</small>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Quick CTA Presets -->
+                                                <div class="col-xxl-6">
+                                                    <div class="site-input-groups">
+                                                        <label class="box-input-label" for="">{{ __('Quick Select') }}</label>
+                                                        <select class="form-select" id="quickCTA">
+                                                            <option value="">{{ __('-- Or choose a preset --') }}</option>
+                                                            <option value="Shop Now">🛒 {{ __('Shop Now') }}</option>
+                                                            <option value="Learn More">📚 {{ __('Learn More') }}</option>
+                                                            <option value="Get Started">🚀 {{ __('Get Started') }}</option>
+                                                            <option value="Sign Up Now">✍️ {{ __('Sign Up Now') }}</option>
+                                                            <option value="Download Now">⬇️ {{ __('Download Now') }}</option>
+                                                            <option value="Book Now">📅 {{ __('Book Now') }}</option>
+                                                            <option value="Contact Us">📞 {{ __('Contact Us') }}</option>
+                                                            <option value="Visit Website">🌐 {{ __('Visit Website') }}</option>
+                                                            <option value="View Details">👁️ {{ __('View Details') }}</option>
+                                                            <option value="Subscribe">📧 {{ __('Subscribe') }}</option>
+                                                            <option value="Join Now">🤝 {{ __('Join Now') }}</option>
+                                                            <option value="Try For Free">🎁 {{ __('Try For Free') }}</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Preview -->
+                                                <div class="col-xxl-6">
+                                                    <div class="site-input-groups">
+                                                        <label class="box-input-label">{{ __('Preview') }}</label>
+                                                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                                                            <button type="button" id="ctaPreview" style="
+                                                                padding: 12px 30px;
+                                                                border-radius: 25px;
+                                                                font-weight: 600;
+                                                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                                                border: none;
+                                                                color: white;
+                                                                cursor: default;
+                                                            ">
+                                                                <span id="ctaPreviewText">Learn More</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
                                 <div class="col-xl-6">
                                     <div class="site-input-groups">
                                         <label class="box-input-label" for="">{{ __('Status') }}</label>
@@ -169,6 +268,7 @@
             $('#adsType').change(function() {
                 var selectedType = $(this).val();
                 visibilityField(selectedType);
+                toggleCTASection(selectedType);
             });
 
             // Handle 'For' field change to show/hide plan field
@@ -184,6 +284,28 @@
                 }
             });
 
+            // NEW: Toggle CTA section for image ads
+            function toggleCTASection(selectedType) {
+                if (selectedType === 'image') {
+                    $('#ctaSection').slideDown();
+                } else {
+                    $('#ctaSection').slideUp();
+                }
+            }
+
+            // NEW: Update CTA preview
+            $('#cta_button_text').on('input', function() {
+                var text = $(this).val() || 'Learn More';
+                $('#ctaPreviewText').text(text);
+            });
+
+            // NEW: Quick CTA select
+            $('#quickCTA').change(function() {
+                if ($(this).val()) {
+                    $('#cta_button_text').val($(this).val()).trigger('input');
+                }
+            });
+
             // Trigger on page load if old value exists
             @if(old('for') == 'subscribed_users')
                 $('#planField').show();
@@ -191,7 +313,9 @@
             @endif
 
             @if(old('type'))
-                visibilityField('{{ old('type') }}');
+                var oldType = '{{ old('type') }}';
+                visibilityField(oldType);
+                toggleCTASection(oldType);
             @endif
 
             function visibilityField(selectedType)

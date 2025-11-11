@@ -20,7 +20,7 @@ use Illuminate\Validation\Rule;
 
 class AdsController extends Controller
 {
-    use ImageUpload,NotifyTrait;
+    use ImageUpload, NotifyTrait;
 
     public function __construct()
     {
@@ -127,6 +127,7 @@ class AdsController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'title' => 'required',
+            'description' => 'nullable|string|max:500',
             'amount' => 'required|numeric',
             'duration' => 'required|numeric',
             'max_views' => 'required|numeric',
@@ -141,6 +142,8 @@ class AdsController extends Controller
                 'exists:subscription_plans,id'
             ],
             'schedules' => 'nullable|array',
+            'cta_button_text' => 'nullable|string|max:50',
+            'cta_button_url' => 'nullable|url|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -161,10 +164,14 @@ class AdsController extends Controller
         $bannerPath = null;
         if ($request->get('type') == 'image' && $request->hasFile('image')) {
             $bannerPath = self::imageUploadTrait($request->file('image'));
+            
+            // Add watermark to image
+            $bannerPath = $this->addWatermarkToImage($bannerPath);
         }
 
         Ads::create([
             'title' => $request->get('title'),
+            'description' => $request->get('description'),
             'user_id' => 0,
             'plan_id' => $planId,
             'amount' => $request->get('amount'),
@@ -176,6 +183,8 @@ class AdsController extends Controller
             'value' => $request->get('type') == 'image' ? $bannerPath : $request->get($request->get('type')),
             'schedules' => $request->get('schedules'),
             'status' => $request->get('status'),
+            'cta_button_text' => $request->get('cta_button_text'),
+            'cta_button_url' => $request->get('cta_button_url'),
         ]);
 
         notify()->success(__('Ads added successfully!'));
@@ -195,6 +204,7 @@ class AdsController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'title' => 'required',
+            'description' => 'nullable|string|max:500',
             'amount' => 'required|numeric',
             'duration' => 'required|numeric',
             'max_views' => 'required|numeric',
@@ -209,6 +219,8 @@ class AdsController extends Controller
                 'exists:subscription_plans,id'
             ],
             'schedules' => 'nullable|array',
+            'cta_button_text' => 'nullable|string|max:50',
+            'cta_button_url' => 'nullable|url|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -231,10 +243,14 @@ class AdsController extends Controller
         $bannerPath = $ads->value;
         if ($request->get('type') == 'image' && $request->hasFile('image')) {
             $bannerPath = self::imageUploadTrait($request->file('image'));
+            
+            // Add watermark to image
+            $bannerPath = $this->addWatermarkToImage($bannerPath);
         }
 
         $ads->update([
             'title' => $request->get('title'),
+            'description' => $request->get('description'),
             'plan_id' => $planId,
             'for' => $request->get('for'),
             'amount' => $request->get('amount'),
@@ -245,6 +261,8 @@ class AdsController extends Controller
             'value' => $request->get('type') == 'image' ? $bannerPath : $request->get($request->get('type')),
             'schedules' => $request->get('schedules'),
             'status' => $request->get('status'),
+            'cta_button_text' => $request->get('cta_button_text'),
+            'cta_button_url' => $request->get('cta_button_url'),
         ]);
 
         if ($ads->user_id != 0 && $ads->status == AdsStatus::Rejected) {
@@ -309,5 +327,178 @@ class AdsController extends Controller
         $reports = AdsReport::with('ads', 'user')->latest()->paginate();
 
         return view('backend.ads.reports', compact('reports'));
+    }
+
+    /**
+     * Add watermark to uploaded image
+     */
+    private function addWatermarkToImage($imagePath)
+    {
+        try {
+            // Handle path - prepend 'assets/' if not already there
+            if (!str_starts_with($imagePath, 'assets/')) {
+                $fullPath = public_path('assets/' . $imagePath);
+            } else {
+                $fullPath = public_path($imagePath);
+            }
+            
+            if (!file_exists($fullPath)) {
+                \Log::error("Image not found for watermark: {$fullPath}");
+                return $imagePath;
+            }
+
+            $imageInfo = getimagesize($fullPath);
+            if (!$imageInfo) {
+                return $imagePath;
+            }
+
+            $imageType = $imageInfo[2];
+            $image = $this->loadImageResource($fullPath, $imageType);
+            if (!$image) {
+                return $imagePath;
+            }
+
+            $width = imagesx($image);
+            $height = imagesy($image);
+
+            // Add text watermark
+            $watermarkText = config('app.name', 'Affixin');
+            $image = $this->applyTextWatermark($image, $watermarkText, $width, $height);
+
+            // Add logo watermark
+            $logoPath = public_path('assets/global/images/5GtxdJSsj6RsyVJWeryp.png');
+            if (file_exists($logoPath)) {
+                $image = $this->applyLogoWatermark($image, $logoPath, $width, $height);
+            }
+
+            // Generate watermarked path
+            $pathInfo = pathinfo($imagePath);
+            $directory = $pathInfo['dirname'];
+            if ($directory === '.' || empty($directory)) {
+                $directory = 'global/images';
+            }
+            
+            $watermarkedPath = $directory . '/' . $pathInfo['filename'] . '_wm.' . $pathInfo['extension'];
+            
+            if (!str_starts_with($watermarkedPath, 'assets/')) {
+                $watermarkedFullPath = public_path('assets/' . $watermarkedPath);
+            } else {
+                $watermarkedFullPath = public_path($watermarkedPath);
+            }
+
+            $this->saveImageResource($image, $watermarkedFullPath, $imageType);
+            imagedestroy($image);
+
+            return $watermarkedPath;
+
+        } catch (\Exception $e) {
+            \Log::error('Watermark failed: ' . $e->getMessage());
+            return $imagePath;
+        }
+    }
+
+    private function loadImageResource($path, $type)
+    {
+        switch ($type) {
+            case IMAGETYPE_JPEG:
+                return imagecreatefromjpeg($path);
+            case IMAGETYPE_PNG:
+                return imagecreatefrompng($path);
+            case IMAGETYPE_GIF:
+                return imagecreatefromgif($path);
+            case IMAGETYPE_WEBP:
+                return imagecreatefromwebp($path);
+            default:
+                return false;
+        }
+    }
+
+    private function saveImageResource($image, $path, $type)
+    {
+        switch ($type) {
+            case IMAGETYPE_JPEG:
+                imagejpeg($image, $path, 90);
+                break;
+            case IMAGETYPE_PNG:
+                imagesavealpha($image, true);
+                imagepng($image, $path, 8);
+                break;
+            case IMAGETYPE_GIF:
+                imagegif($image, $path);
+                break;
+            case IMAGETYPE_WEBP:
+                imagewebp($image, $path, 90);
+                break;
+        }
+    }
+
+    private function applyTextWatermark($image, $text, $width, $height)
+    {
+        $fontSize = max(14, min($width, $height) * 0.035);
+        $textWidth = strlen($text) * ($fontSize * 0.6);
+        $textHeight = $fontSize;
+        
+        $padding = 15;
+        $x = $width - $textWidth - $padding;
+        $y = $height - $padding;
+        
+        $bgColor = imagecolorallocatealpha($image, 0, 0, 0, 50);
+        imagefilledrectangle(
+            $image,
+            $x - 10,
+            $y - $textHeight - 8,
+            $x + $textWidth + 10,
+            $y + 5,
+            $bgColor
+        );
+        
+        $textColor = imagecolorallocate($image, 255, 255, 255);
+        $fontFile = public_path('fonts/arial.ttf');
+        
+        if (file_exists($fontFile)) {
+            imagettftext($image, $fontSize, 0, $x, $y, $textColor, $fontFile, $text);
+        } else {
+            imagestring($image, 5, $x, $y - $textHeight, $text, $textColor);
+        }
+        
+        return $image;
+    }
+
+    private function applyLogoWatermark($image, $logoPath, $width, $height)
+    {
+        $logoInfo = getimagesize($logoPath);
+        $logo = $this->loadImageResource($logoPath, $logoInfo[2]);
+        
+        if (!$logo) {
+            return $image;
+        }
+
+        $logoWidth = imagesx($logo);
+        $logoHeight = imagesy($logo);
+        
+        $newLogoWidth = $width * 0.10;
+        $newLogoHeight = ($logoHeight / $logoWidth) * $newLogoWidth;
+        
+        $resizedLogo = imagecreatetruecolor($newLogoWidth, $newLogoHeight);
+        imagealphablending($resizedLogo, false);
+        imagesavealpha($resizedLogo, true);
+        $transparent = imagecolorallocatealpha($resizedLogo, 0, 0, 0, 127);
+        imagefill($resizedLogo, 0, 0, $transparent);
+        imagealphablending($resizedLogo, true);
+        
+        imagecopyresampled(
+            $resizedLogo, $logo,
+            0, 0, 0, 0,
+            $newLogoWidth, $newLogoHeight,
+            $logoWidth, $logoHeight
+        );
+        
+        $padding = 15;
+        imagecopy($image, $resizedLogo, $padding, $padding, 0, 0, $newLogoWidth, $newLogoHeight);
+        
+        imagedestroy($logo);
+        imagedestroy($resizedLogo);
+        
+        return $image;
     }
 }

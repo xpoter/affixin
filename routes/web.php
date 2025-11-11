@@ -22,9 +22,12 @@ use App\Http\Controllers\Frontend\UserController;
 use App\Http\Controllers\Frontend\WithdrawController;
 use App\Http\Controllers\UpdateController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\FrontEnd\AdPreviewController;
 
 Route::get('/', [HomeController::class, 'home'])->name('home');
 Route::post('subscriber', [HomeController::class, 'subscribeNow'])->name('subscriber');
+
+Route::get('/ad/preview/{id}', [AdPreviewController::class, 'show'])->name('ad.preview');
 
 //Dynamic Page
 Route::get('page/{section}', [PageController::class, 'getPage'])->name('dynamic.page');
