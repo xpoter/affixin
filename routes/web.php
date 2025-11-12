@@ -22,7 +22,7 @@ use App\Http\Controllers\Frontend\UserController;
 use App\Http\Controllers\Frontend\WithdrawController;
 use App\Http\Controllers\UpdateController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\FrontEnd\AdPreviewController;
+use App\Http\Controllers\Frontend\AdPreviewController;
 
 Route::get('/', [HomeController::class, 'home'])->name('home');
 Route::post('subscriber', [HomeController::class, 'subscribeNow'])->name('subscriber');

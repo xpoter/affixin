@@ -1,276 +1,418 @@
-@extends('frontend::layouts.user')
+@extends('backend.layouts.app')
 @section('title')
-{{ __('Update Ads') }}
+    {{ __('Edit Ads') }}
 @endsection
 @section('content')
-<div class="ads-area">
-    @include('frontend::user.ads.include.__step')
-    <form action="{{ route('user.my.ads.update',encrypt($ads->id)) }}" method="post">
-        @csrf
-        <div class="row gy-30">
-            <div class="col-xxl-12">
-                <div class="site-card">
-                    <div class="site-card-header">
-                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
-                            <h3 class="site-card-title mb-0">@yield('title')</h3>
-                            <a class="site-btn black-btn" href="{{ route('user.my.ads.index') }}"> <i class="icon-receipt-2"></i> {{ __('My Ads List') }}</a>
-                        </div>
+<div class="main-content">
+    <div class="page-title">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col">
+                    <div class="title-content">
+                        <h2 class="title">{{ __('Edit Ads') }}</h2>
+                        <a href="{{ route('admin.ads.index') }}" class="title-btn"><i data-lucide="arrow-left"></i>{{ __('Back') }}</a>
                     </div>
-                    <div class="create-ads">
-                        <div class="row gy-25">
-                            <div class="col-xxl-12">
-                                <div class="single-input">
-                                    <label class="input-label" for="">{{ __('Ads Title') }}<span>*</span></label>
-                                    <div class="input-field">
-                                        <input type="text" class="box-input" name="title" value="{{ $ads->title }}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-xl-12">
+                <div class="site-card">
+                    <div class="site-card-body">
+                        <form action="{{ route('admin.ads.update',$ads->id) }}" method="post" enctype="multipart/form-data">
+                            @csrf
+                            @method('PUT')
+                            <div class="row">
+                                <div class="col-xxl-8">
+                                    <div class="site-input-groups">
+                                        <label for="" class="box-input-label">{{ __('Title') }}</label>
+                                        <input type="text" name="title" class="box-input mb-0" value="{{ old('title',$ads->title) }}" required/>
                                     </div>
                                 </div>
-                            </div>
-                            {{-- @if(setting('ads_system','permission'))
-                            <div class="col-xxl-4">
-                                <div class="single-input">
-                                    <label class="input-label" for="">{{ __('Plan') }}<span>*</span></label>
-                                    <div class="input-select">
-                                        <select name="type" id="adsType">
-                                            <option selected disabled>{{ __('Select Plan') }}</option>
-                                            @foreach ($plans as $plan)
-                                            <option value="{{ $plan->id }}" @selected($plan->id == $ads->plan_id)>{{ $plan->name }}</option>
-                                            @endforeach
+                                
+                                <!-- NEW: Description Field -->
+                                <div class="col-xxl-12">
+                                    <div class="site-input-groups">
+                                        <label for="" class="box-input-label">
+                                            {{ __('Description') }} 
+                                            <span class="text-muted">({{ __('Optional - shown on ad preview page') }})</span>
+                                        </label>
+                                        <textarea name="description" class="form-textarea" rows="2" maxlength="500" placeholder="{{ __('Describe your ad...') }}">{{ old('description', $ads->description) }}</textarea>
+                                        <small class="text-muted">{{ __('Max 500 characters') }}</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-xxl-4">
+                                    <div class="site-input-groups">
+                                        <label class="box-input-label" for="">{{ __('For') }}</label>
+                                        <select name="for" id="adsFor" class="form-select" required>
+                                            <option value="">{{ __('Select User Type') }}</option>
+                                            <option value="free_users" @selected(old('for', $ads->for->value) == 'free_users')>{{ __('Free Users') }}</option>
+                                            <option value="subscribed_users" @selected(old('for', $ads->for->value) == 'subscribed_users')>{{ __('Subscribed Users') }}</option>
+                                            <option value="both_users" @selected(old('for', $ads->for->value) == 'both_users')>{{ __('Both Users') }}</option>
                                         </select>
                                     </div>
                                 </div>
-                            </div>
-                            @endif --}}
-                            <input type="hidden" id="adsType" value="{{ $ads->type }}">
-                            <div class="col-xxl-6">
-                                <div class="single-input">
-                                    <label class="input-label" for="">{{ __('Ads Type') }}<span>*</span></label>
-                                    <div class="site-badge badge-success">
-                                        @if($ads->type == App\Enums\AdsType::Link)
-                                        {{ __('Link/URL') }}
-                                        @elseif($ads->type == App\Enums\AdsType::Script)
-                                        {{ __('Script/Code') }}
-                                        @elseif($ads->type == App\Enums\AdsType::Image)
-                                        {{ __('Image/Banner') }}
-                                        @elseif($ads->type == App\Enums\AdsType::Youtube)
-                                        {{ __('Youtube') }}
+                                <div class="col-xxl-4" id="planField" style="display: {{ old('for', $ads->for->value) === 'subscribed_users' ? 'block' : 'none' }};">
+                                    <div class="site-input-groups">
+                                        <label class="box-input-label" for="">{{ __('Plan') }} <span class="text-danger">*</span></label>
+                                        <select name="plan_id" id="planSelect" class="form-select">
+                                            <option value="">{{ __('Select Plan') }}</option>
+                                            @foreach ($plans as $plan)
+                                            <option value="{{ $plan->id }}" @selected(old('plan_id', $ads->plan_id) == $plan->id)>{{ $plan->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <small class="text-muted">{{ __('Required for Subscribed Users ads') }}</small>
+                                    </div>
+                                </div>
+                                <div class="col-xxl-4">
+                                    <div class="site-input-groups">
+                                        <label class="box-input-label" for="">{{ __('Amount') }}
+                                            <i data-lucide="info" data-bs-toggle="tooltip" data-bs-original-title="User will showing ads then get this amount"></i>
+                                        </label>
+                                        <div class="input-group joint-input">
+                                            <input type="number" name="amount" class="form-control" value="{{ old('amount',$ads->amount) }}" min="0.0001" max="100" step="0.0001" required/>
+                                            <span class="input-group-text">{{ $currency }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-xxl-4">
+                                    <div class="site-input-groups">
+                                        <label class="box-input-label" for="">{{ __('Duration') }}</label>
+                                        <div class="input-group joint-input">
+                                            <input type="number" name="duration" class="form-control" value="{{ old('duration',$ads->duration) }}" required/>
+                                            <span class="input-group-text">{{ __('Seconds') }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-xxl-4">
+                                    <div class="site-input-groups">
+                                        <label class="box-input-label" for="">{{ __('Max Show Limit') }} <i data-lucide="info" data-bs-toggle="tooltip" data-bs-original-title="User can't showing ads after reached the limit"></i></label>
+                                        <div class="input-group joint-input">
+                                            <input type="number" name="max_views" class="form-control" value="{{ old('max_views',$ads->max_views) }}" required/>
+                                            <span class="input-group-text">{{ __('Times') }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-xxl-4">
+                                        <div class="site-input-groups">
+                                            <label class="box-input-label" for="">{{ __('Ads Type') }}</label>
+                                            <select name="type" class="form-select" id="adsType" required>
+                                                <option value="">{{ __('Select Type') }}</option>
+                                                <option value="link" @selected(old('type',$ads->type->value) == 'link')>{{ __('Link/URL') }}</option>
+                                                <option value="image" @selected(old('type',$ads->type->value) == 'image')>{{ __('Banner/Image') }}</option>
+                                                <option value="script" @selected(old('type',$ads->type->value) == 'script')>{{ __('Script/Code') }}</option>
+                                                <option value="youtube" @selected(old('type',$ads->type->value) == 'youtube')>{{ __('Youtube Embed Link') }}</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-xxl-8">
+                                        <div class="site-input-groups" id="typeValueField">
+                                            <div id="link" class="d-none">
+                                                <label class="box-input-label" for="">{{ __('Link') }}</label>
+                                                <input type="text" name="link" class="box-input mb-0" value="{{ old('link', $ads->type->value == 'link' ? $ads->value : '') }}"/>
+                                            </div>
+                                            <div id="youtube" class="d-none">
+                                                <label class="box-input-label" for="">{{ __('Youtube Embed Link') }}</label>
+                                                <input type="text" name="youtube" class="box-input mb-0" value="{{ old('youtube', $ads->type->value == 'youtube' ? $ads->value : '') }}"/>
+                                            </div>
+                                            <div id="script" class="d-none">
+                                                <label class="box-input-label" for="">{{ __('Script') }}</label>
+                                                <textarea name="script" class="form-textarea" cols="30" rows="4">{{ old('script', $ads->type->value == 'script' ? $ads->value : '') }}</textarea>
+                                            </div>
+                                            <div id="image" class="d-none">
+                                                <label class="box-input-label" for="">{{ __('Image') }}</label>
+                                                @if($ads->type->value == 'image')
+                                                    <div class="mb-2">
+                                                        <img src="{{ asset('assets/' . $ads->value) }}" alt="" width="200" style="border-radius: 8px;">
+                                                    </div>
+                                                @endif
+                                                <div class="wrap-custom-file">
+                                                    <input type="file" name="image" id="adsImage"
+                                                           accept=".gif, .jpg, .png"/>
+                                                    <label for="adsImage">
+                                                        <img class="upload-icon"
+                                                             src="{{ asset('global/materials/upload.svg') }}" alt=""/>
+                                                        <span>{{ __('Upload New Image') }}</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- NEW: CTA Section (only for Image ads) -->
+                                <div class="col-xxl-12" id="ctaSection" style="display: {{ old('type', $ads->type->value) === 'image' ? 'block' : 'none' }};">
+                                    <div class="site-card" style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); border: 2px solid #667eea; margin-top: 20px;">
+                                        <div class="site-card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                            <h5 class="mb-0 text-white">
+                                                <i data-lucide="mouse-pointer-click"></i>
+                                                {{ __('Call-to-Action Settings') }}
+                                            </h5>
+                                            <small class="text-white-50">{{ __('Customize the button on your ad preview page') }}</small>
+                                        </div>
+                                        <div class="site-card-body">
+                                            <div class="row">
+                                                <div class="col-xxl-6">
+                                                    <div class="site-input-groups">
+                                                        <label class="box-input-label" for="">
+                                                            {{ __('Button Text') }}
+                                                            <i data-lucide="info" data-bs-toggle="tooltip" title="{{ __('Text shown on the CTA button') }}"></i>
+                                                        </label>
+                                                        <input type="text" name="cta_button_text" id="cta_button_text" class="box-input mb-0" 
+                                                               value="{{ old('cta_button_text', $ads->cta_button_text ?? 'Learn More') }}" 
+                                                               placeholder="{{ __('e.g., Shop Now, Get Started, Learn More') }}" 
+                                                               maxlength="50"/>
+                                                        <small class="text-muted">{{ __('Max 50 characters') }}</small>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="col-xxl-6">
+                                                    <div class="site-input-groups">
+                                                        <label class="box-input-label" for="">
+                                                            {{ __('Button URL') }}
+                                                            <i data-lucide="info" data-bs-toggle="tooltip" title="{{ __('Where the button links to') }}"></i>
+                                                        </label>
+                                                        <input type="url" name="cta_button_url" id="cta_button_url" class="box-input mb-0" 
+                                                               value="{{ old('cta_button_url', $ads->cta_button_url) }}" 
+                                                               placeholder="{{ __('https://example.com/your-page') }}"/>
+                                                        <small class="text-muted">{{ __('Leave empty to link to homepage') }}</small>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Quick CTA Presets -->
+                                                <div class="col-xxl-6">
+                                                    <div class="site-input-groups">
+                                                        <label class="box-input-label" for="">{{ __('Quick Select') }}</label>
+                                                        <select class="form-select" id="quickCTA">
+                                                            <option value="">{{ __('-- Or choose a preset --') }}</option>
+                                                            <option value="Shop Now">🛒 {{ __('Shop Now') }}</option>
+                                                            <option value="Learn More">📚 {{ __('Learn More') }}</option>
+                                                            <option value="Get Started">🚀 {{ __('Get Started') }}</option>
+                                                            <option value="Sign Up Now">✍️ {{ __('Sign Up Now') }}</option>
+                                                            <option value="Download Now">⬇️ {{ __('Download Now') }}</option>
+                                                            <option value="Book Now">📅 {{ __('Book Now') }}</option>
+                                                            <option value="Contact Us">📞 {{ __('Contact Us') }}</option>
+                                                            <option value="Visit Website">🌐 {{ __('Visit Website') }}</option>
+                                                            <option value="View Details">👁️ {{ __('View Details') }}</option>
+                                                            <option value="Subscribe">📧 {{ __('Subscribe') }}</option>
+                                                            <option value="Join Now">🤝 {{ __('Join Now') }}</option>
+                                                            <option value="Try For Free">🎁 {{ __('Try For Free') }}</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Preview -->
+                                                <div class="col-xxl-6">
+                                                    <div class="site-input-groups">
+                                                        <label class="box-input-label">{{ __('Preview') }}</label>
+                                                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                                                            <button type="button" id="ctaPreview" style="
+                                                                padding: 12px 30px;
+                                                                border-radius: 25px;
+                                                                font-weight: 600;
+                                                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                                                border: none;
+                                                                color: white;
+                                                                cursor: default;
+                                                            ">
+                                                                <span id="ctaPreviewText">{{ $ads->cta_button_text ?? 'Learn More' }}</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-xl-6">
+                                    <div class="site-input-groups">
+                                        <label class="box-input-label" for="">{{ __('Status') }}</label>
+                                        <div class="switch-field same-type">
+                                            <input type="radio" id="radio-five" name="status" value="active" @checked(old('status',$ads->status->value) == 'active')/>
+                                            <label for="radio-five">{{ __('Active') }}</label>
+                                            <input type="radio" id="radio-six" name="status" value="inactive" @checked(old('status',$ads->status->value) == 'inactive')/>
+                                            <label for="radio-six">{{ __('Inactive') }}</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-xxl-12">
+                                    <h6 class="mb-2">{{ __('Ads Schedule') }}</h6>
+                                    <button type="button" class="site-btn-xs primary-btn mb-2" id="addNewSchedule">{{ __('Add New') }}</button>
+                                    <div id="scheduleList">
+                                        @if(!is_null($ads->schedules))
+                                            @foreach($ads->schedules as $schedule)
+                                                <div class="row schedule-item">
+                                                    <div class="col-xxl-4">
+                                                        <div class="site-input-groups">
+                                                            <label class="box-input-label" for="">{{ __('Days') }}</label>
+                                                            <select name="schedules[{{ $loop->index }}][day]" class="form-select" required>
+                                                                <option value="saturday" @selected(strtolower($schedule['day']) == 'saturday')>{{ __('Saturday') }}</option>
+                                                                <option value="sunday" @selected(strtolower($schedule['day']) == 'sunday')>{{ __('Sunday') }}</option>
+                                                                <option value="monday" @selected(strtolower($schedule['day']) == 'monday')>{{ __('Monday') }}</option>
+                                                                <option value="tuesday" @selected(strtolower($schedule['day']) == 'tuesday')>{{ __('Tuesday') }}</option>
+                                                                <option value="wednesday" @selected(strtolower($schedule['day']) == 'wednesday')>{{ __('Wednesday') }}</option>
+                                                                <option value="thursday" @selected(strtolower($schedule['day']) == 'thursday')>{{ __('Thursday') }}</option>
+                                                                <option value="friday" @selected(strtolower($schedule['day']) == 'friday')>{{ __('Friday') }}</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-xxl-3">
+                                                        <div class="site-input-groups">
+                                                            <label for="" class="box-input-label">{{ __('Start Time') }}</label>
+                                                            <input type="time" name="schedules[{{ $loop->index }}][start_time]" class="box-input mb-0" value="{{ $schedule['start_time'] }}" required/>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-xxl-3">
+                                                        <div class="site-input-groups">
+                                                            <label for="" class="box-input-label">{{ __('End Time') }}</label>
+                                                            <input type="time" name="schedules[{{ $loop->index }}][end_time]" class="box-input mb-0" value="{{ $schedule['end_time'] }}" required/>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-xxl-2">
+                                                        <button type="button" class="site-btn-sm red-btn mt-4 deleteSchedule">
+                                                            <i data-lucide="x"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            @endforeach
                                         @endif
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-xxl-6" id="typeValueField">
-                                <div class="single-input d-none" id="link">
-                                    <label class="input-label" for="">{{ __('URL/Link') }}<span>*</span></label>
-                                    <div class="input-field">
-                                        <input type="text" class="box-input" name="link" value="{{ $ads->value }}">
-                                    </div>
-                                </div>
-                                <div class="single-input d-none" id="youtube">
-                                    <label class="input-label" for="">{{ __('Youtube Embed Link') }}<span>*</span></label>
-                                    <div class="input-field">
-                                        <input type="text" class="box-input" name="youtube" value="{{ $ads->value }}">
-                                    </div>
-                                </div>
-                                <div class="single-input d-none" id="script">
-                                    <label class="input-label" for="">{{ __('Script/Code') }}<span>*</span></label>
-                                    <div class="input-field">
-                                        <textarea name="script" class="">{{ $ads->value }}</textarea>
-                                    </div>
-                                </div>
-                                <div class="single-input d-none" id="image">
-                                    <label class="input-label" for="">{{ __('Image/Banner') }}<span>*</span></label>
-                                    <div class="upload-custom-file without-image">
-                                        <input type="file" name="image" id="image" accept=".gif, .jpg, .png" onchange="showCloseButton(event)"/>
-                                        <label for="image" @if($ads->type->value == 'image') class="file-ok"  style="background-image: url({{ asset($ads->value) }})" @endif>
-                                            <img class="upload-icon" src="{{ asset('global/materials/upload.svg') }}" alt="" />
-                                            <span> {{ __('Upload Image/Banner') }}</span>
-                                        </label>
-                                    </div>
-                                    <button type="button" class="upload-thumb-close" onclick="removeUploadedFile(this)">
-                                        <i class="icon-close-circle"></i>
-                                    </button>
-                                </div>
+
+                            <div class="action-btns">
+                                <button type="submit" class="site-btn-sm primary-btn me-2">
+                                    <i data-lucide="check"></i>
+                                    {{ __('Update Ads') }}
+                                </button>
                             </div>
-                            <div class="col-xxl-6">
-                                <div class="single-input">
-                                    <label class="input-label" for="">{{ __('Duration') }}<span>*</span></label>
-                                    <div class="input-field input-group">
-                                        <input type="number" name="duration" value="{{ $ads->duration }}">
-                                        <span class="input-group-text">{{ __('Seconds') }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        </form>
                     </div>
-                </div>
-            </div>
-            <div class="col-xxl-12">
-                <div class="input-btn-wrap">
-                    <button class="input-btn btn-primary"><i class="icon-arrow-right-2"></i>{{ __('Submit') }}</button>
                 </div>
             </div>
         </div>
-    </form>
+    </div>
 </div>
 @endsection
 
-@push('js')
-<script src="{{ asset('frontend/default/js/jquery.timepicker.min.js') }}"></script>
-<script>
-    "use strict";
+@section('script')
+    <script>
+        (function ($) {
+            "use strict";
 
-    function dragNdrop(event) {
-      var fileName = URL.createObjectURL(event.target.files[0]);
-      var preview = document.getElementById("preview");
-      var previewImg = document.createElement("img");
-      previewImg.setAttribute("src", fileName);
-      preview.innerHTML = "";
-      preview.appendChild(previewImg);
-    }
+            // Handle Ads Type change
+            $('#adsType').change(function() {
+                var selectedType = $(this).val();
+                visibilityField(selectedType);
+                toggleCTASection(selectedType);
+            });
 
-    function drag() {
-      document.getElementById('uploadFile').parentNode.className = 'draging dragBox';
-    }
+            // Handle 'For' field change to show/hide plan field
+            $('#adsFor').change(function() {
+                var selectedFor = $(this).val();
+                if (selectedFor === 'subscribed_users') {
+                    $('#planField').show();
+                    $('#planSelect').prop('required', true);
+                } else {
+                    $('#planField').hide();
+                    $('#planSelect').prop('required', false);
+                    $('#planSelect').val('');
+                }
+            });
 
-    function drop() {
-      document.getElementById('uploadFile').parentNode.className = 'dragBox';
-    }
+            // NEW: Toggle CTA section for image ads
+            function toggleCTASection(selectedType) {
+                if (selectedType === 'image') {
+                    $('#ctaSection').slideDown();
+                } else {
+                    $('#ctaSection').slideUp();
+                }
+            }
 
-    function removeUploadedFile(button) {
-      var label = button.previousElementSibling.querySelector('label.file-ok');
-      var input = button.previousElementSibling.querySelector('input[type="file"]');
-      label.classList.remove('file-ok');
-      label.removeAttribute('style');
-      label.innerHTML = '<span>{{ __('Upload Image/Banner') }}</span>';
-      input.value = ''; // Reset the input value
-      button.style.display = 'none'; // Hide the close button
-    }
+            // NEW: Update CTA preview
+            $('#cta_button_text').on('input', function() {
+                var text = $(this).val() || 'Learn More';
+                $('#ctaPreviewText').text(text);
+            });
 
-    function showCloseButton(event) {
-      var button = event.target.parentElement.nextElementSibling; // Get the close button
-      button.style.display = 'block'; // Show the close button
-    }
+            // NEW: Quick CTA select
+            $('#quickCTA').change(function() {
+                if ($(this).val()) {
+                    $('#cta_button_text').val($(this).val()).trigger('input');
+                }
+            });
 
-    $('#adsType').change(function() {
-        var selectedType = $(this).val();
-        visibilityField(selectedType);
-    });
+            // Trigger on page load
+            @if(old('for', $ads->for->value) == 'subscribed_users')
+                $('#planField').show();
+                $('#planSelect').prop('required', true);
+            @endif
 
-    var selectedType = $('#adsType').val();
+            @if(old('type', $ads->type->value))
+                var currentType = '{{ old('type', $ads->type->value) }}';
+                visibilityField(currentType);
+                toggleCTASection(currentType);
+            @endif
 
-    // Price List
-    const linkAdsPrice = @json(setting('link_ads_price','fee'));
-    const scriptAdsPrice = @json(setting('script_ads_price','fee'));
-    const imageAdsPrice = @json(setting('image_ads_price','fee'));
-    const youtubeAdsPrice = @json(setting('youtube_ads_price','fee'));
+            function visibilityField(selectedType)
+            {
+                $('#typeValueField > div').addClass('d-none'); // Hide all
+                $('#' + selectedType).removeClass('d-none'); // Show selected
+            }
 
-    var adsPrice = 0;
+            var counter = {{ !is_null($ads->schedules) ? count($ads->schedules) : 0 }};
+            $('#addNewSchedule').on('click',function(){
+                let element = `<div class="row schedule-item">
+                                <div class="col-xxl-4">
+                                    <div class="site-input-groups">
+                                        <label class="box-input-label" for="">{{ __('Days') }}</label>
+                                        <select name="schedules[`+counter+`][day]" class="form-select" required>
+                                            <option value="saturday">{{ __('Saturday') }}</option>
+                                            <option value="sunday">{{ __('Sunday') }}</option>
+                                            <option value="monday">{{ __('Monday') }}</option>
+                                            <option value="tuesday">{{ __('Tuesday') }}</option>
+                                            <option value="wednesday">{{ __('Wednesday') }}</option>
+                                            <option value="thursday">{{ __('Thursday') }}</option>
+                                            <option value="friday">{{ __('Friday') }}</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-xxl-3">
+                                    <div class="site-input-groups">
+                                        <label for="" class="box-input-label">{{ __('Start Time') }}</label>
+                                        <input type="time" name="schedules[`+counter+`][start_time]" class="box-input mb-0" required/>
+                                    </div>
+                                </div>
+                                <div class="col-xxl-3">
+                                    <div class="site-input-groups">
+                                        <label for="" class="box-input-label">{{ __('End Time') }}</label>
+                                        <input type="time" name="schedules[`+counter+`][end_time]" class="box-input mb-0" required/>
+                                    </div>
+                                </div>
+                                <div class="col-xxl-2">
+                                    <button type="button" class="site-btn-sm red-btn mt-4 deleteSchedule">
+                                        <i data-lucide="x"></i>
+                                    </button>
+                                </div>
+                            </div>`;
+                counter++;
+                $('#scheduleList').append(element);
+                refreshIcon();
+            });
 
-    visibilityField(selectedType);
+            $(document).on('click','.deleteSchedule',function(){
+                $(this).closest('.schedule-item').remove()
+            });
 
-    function visibilityField(selectedType)
-    {
-        $('#typeValueField > div').addClass('d-none'); // Hide all
-        $('#' + selectedType).removeClass('d-none'); // Show selected
-
-        if(selectedType == 'link'){
-            $('#adsPrice').text(linkAdsPrice);
-            adsPrice = linkAdsPrice;
-        }else if(selectedType == 'script'){
-            $('#adsPrice').text(scriptAdsPrice);
-            adsPrice = scriptAdsPrice;
-        }else if(selectedType == 'image'){
-            $('#adsPrice').text(imageAdsPrice);
-            adsPrice = imageAdsPrice;
-        }else if(selectedType == 'youtube'){
-            $('#adsPrice').text(youtubeAdsPrice);
-            adsPrice = youtubeAdsPrice;
-        }
-    }
-
-    $('input[name=max_show_limit]').on('keyup',function(){
-        $('.total-charge').text(adsPrice * $(this).val());
-    })
-
-    // Function to initialize nice select plugin
-    function initializeNiceSelect(element) {
-        $(element).niceSelect();
-    }
-
-    // Function to initialize timepicker plugin
-    function initializeTimepicker(element) {
-        $(element).timepicker({
-            timeFormat: "h:mm p",
-        });
-    }
-
-    var counter = 1;
-
-    // Function to add a new schedule item
-    function addScheduleItem() {
-        var newScheduleItem = $(`
-                <div class="add-schedule-inputs">
-                    <div class="single-input">
-                        <div class="input-select">
-                            <select name="schedules[`+counter+`][day]">
-                                <option value="saturday">{{ __('Saturday') }}</option>
-                                <option value="sunday">{{ __('Sunday') }}</option>
-                                <option value="monday">{{ __('Monday') }}</option>
-                                <option value="tuesday">{{ __('Tuesday') }}</option>
-                                <option value="wednesday">{{ __('Wednesday') }}</option>
-                                <option value="thursday">{{ __('Thursday') }}</option>
-                                <option value="friday">{{ __('Friday') }}</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="single-input">
-                        <div class="input-field">
-                            <input type="text" class="timepicker timepicker-with-dropdown"
-                                placeholder="{{ __('Start time') }}" name="schedules[`+counter+`][start_time]">
-                            <i class="icon-clock icon"></i>
-                        </div>
-                    </div>
-                    <div class="single-input">
-                        <div class="input-field">
-                            <input type="text" class="timepicker timepicker-with-dropdown"
-                                placeholder="{{ __('End time') }}" name="schedules[`+counter+`][end_time]">
-                            <i class="icon-clock icon"></i>
-                        </div>
-                    </div>
-                    <div class="action-btn-inner">
-                        <button type="button" class="add-action-close">
-                            <i class="icon-close-circle"></i>
-                        </button>
-                    </div>
-                </div>
-            `);
-
-        // Append the new schedule item
-        $('#schedule-items').append(newScheduleItem);
-
-        // Initialize nice select plugin for the new select element
-        initializeNiceSelect(newScheduleItem.find('select'));
-
-        // Initialize timepicker plugin for the new timepicker inputs
-        initializeTimepicker(newScheduleItem.find('.timepicker'));
-    }
-
-    // Event delegation for removing schedule items
-    $('#schedule-items').on('click', '.add-action-close', function () {
-        $(this).closest('.add-schedule-inputs').remove();
-    });
-
-    // Event listener for adding more schedule items
-    $('#add-more').click(function () {
-        addScheduleItem();
-    });
-
-    // Initialize nice select plugin for existing select elements
-    initializeNiceSelect('.input-select select');
-
-    // Initialize timepicker plugin for existing timepicker inputs
-    initializeTimepicker('.timepicker');
-
-
-  </script>
-@endpush
+            let refreshIcon = () => {
+                lucide.createIcons();
+            }
+        })(jQuery);
+    </script>
+@endsection
